@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ресурс-пак Генератор • Minecraft 1.21.1</title>
+    <script src="jszip.min.js"></script>
+    <style>
+        :root { --bg: #f0f0f0; --border: #a0a0a0; --text: #000; --header-bg: #1e3a5f; --header-fg: #fff; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; font-size: 13px; }
+        .header { background: var(--header-bg); color: var(--header-fg); padding: 0 20px; display: flex; justify-content: space-between; align-items: center; height: 60px; flex-shrink: 0; }
+        .header-title { font-size: 18px; font-weight: bold; }
+        .header-sub { font-size: 11px; color: #a8c4e0; }
+        .top-section { padding: 10px 12px 0 12px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+        .group-box { border: 1px solid var(--border); border-radius: 3px; padding: 8px 10px; position: relative; }
+        .group-box legend { font-weight: bold; font-size: 12px; padding: 0 5px; margin-left: 5px; }
+        input[type="text"], select, button { font-family: inherit; font-size: 13px; padding: 4px; border: 1px solid #7a7a7a; background: white; box-sizing: border-box; }
+        button { background: #e1e1e1; cursor: pointer; padding: 5px 10px; }
+        button:hover { background: #e5f1fb; border-color: #0078d7; }
+        .params-grid { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 8px 10px; align-items: center; }
+        .params-grid label { text-align: right; padding-right: 5px; }
+        .export-grid { display: flex; flex-direction: column; gap: 5px; }
+        .radio-group { display: flex; gap: 15px; }
+        .path-row { display: flex; gap: 10px; align-items: center; }
+        .path-row input { flex: 1; }
+        .main-content { display: flex; flex: 1; padding: 10px 12px; gap: 10px; overflow: hidden; }
+        .left-panel { flex: 1; display: flex; flex-direction: column; min-width: 400px; }
+        .cat-row { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+        .tree-container { flex: 1; border: 1px solid #7a7a7a; background: white; overflow-y: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f0f0f0; text-align: left; padding: 4px 8px; border-bottom: 1px solid #d0d0d0; border-right: 1px solid #d0d0d0; position: sticky; top: 0; font-weight: normal; }
+        td { padding: 4px 8px; border-bottom: 1px solid #eee; cursor: default; }
+        tr.selected { background: #0078d7; color: white; }
+        tr.selected td { border-bottom-color: #0078d7; }
+        .btn-row { display: flex; gap: 5px; margin-top: 5px; }
+        .right-panel { width: 290px; display: flex; flex-direction: column; flex-shrink: 0; }
+        .preview-box { flex: 1; display: flex; flex-direction: column; align-items: center; }
+        .preview-canvas { width: 260px; height: 260px; background: #222; margin: 10px 0; display: flex; align-items: center; justify-content: center; color: #888; font-size: 12px; position: relative; border: 1px solid #555; }
+        .preview-canvas img { max-width: 100%; max-height: 100%; image-rendering: pixelated; }
+        .preview-label { font-size: 12px; color: #555; text-align: center; word-break: break-all; }
+        .bottom-section { padding: 0 12px 10px 12px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+        .btn-generate { width: 100%; padding: 8px; font-weight: bold; font-size: 14px; }
+        .log-box { height: 90px; background: #1e1e1e; color: #d0d0d0; font-family: Consolas, monospace; font-size: 12px; padding: 6px; overflow-y: auto; border: 1px solid #7a7a7a; resize: none; width: 100%; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="header-title" id="lbl-header">🎨  Ресурс-пак Генератор</div>
+        <div class="header-sub">Minecraft 1.21.1 • pack_format 34</div>
+    </div>
+
+    <div class="top-section">
+        <div class="group-box">
+            <legend id="lbl-params"> Параметры пака </legend>
+            <div class="params-grid">
+                <label id="lbl-name">Название:</label>
+                <input type="text" id="packName" value="Мой ресурс-пак">
+                <label id="lbl-desc">Описание:</label>
+                <input type="text" id="packDesc" value="Сделан в GUI-генераторе">
+                <label id="lbl-lang">Язык:</label>
+                <select id="langSelect"><option value="ru">Русский</option><option value="en">English</option></select>
+                <div></div><div></div>
+            </div>
+        </div>
+        <div class="group-box">
+            <legend id="lbl-export"> Куда сохранить </legend>
+            <div class="export-grid">
+                <div class="radio-group">
+                    <label><input type="radio" name="exportMode" value="dir" checked> <span id="lbl-mode-dir">В выбранную папку</span></label>
+                    <label><input type="radio" name="exportMode" value="zip"> <span id="lbl-mode-zip">Сохранить как .zip-файл</span></label>
+                </div>
+                <div class="path-row">
+                    <label id="lbl-path">Путь:</label>
+                    <input type="text" id="pathInput" placeholder="(В браузере файл скачивается в Загрузки)">
+                    <button id="btnPath" disabled style="opacity:0.5;">Выбрать…</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="left-panel">
+            <div class="cat-row">
+                <label id="lbl-cat" style="font-weight:bold;">Категория:</label>
+                <select id="categorySelect" style="width: 300px;"></select>
+            </div>
+            <div class="tree-container">
+                <table id="textureTable">
+                    <thead><tr><th id="th-tex">Текстура</th><th id="th-size" style="width: 80px;">Размер</th><th id="th-src" style="width: 150px;">Источник</th></tr></thead>
+                    <tbody id="textureTbody"></tbody>
+                </table>
+            </div>
+            <div class="btn-row">
+                <button id="btnLoad">📁 Загрузить фото</button>
+                <button id="btnClearSel">🗑 Очистить</button>
+                <button id="btnClearAll">🧹 Очистить всё</button>
+            </div>
+        </div>
+        <div class="right-panel">
+            <div class="group-box preview-box">
+                <legend id="lbl-preview"> Превью </legend>
+                <div class="preview-canvas" id="previewCanvas">
+                    <span id="previewText">Выберите текстуру слева</span>
+                    <img id="previewImg" style="display: none;">
+                </div>
+                <div class="preview-label" id="previewInfo"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-section">
+        <button id="btnGenerate" class="btn-generate">▶  Сгенерировать и СОХРАНИТЬ</button>
+        <div class="group-box" style="padding: 0; border: none;">
+            <legend id="lbl-log"> Лог </legend>
+            <textarea id="logBox" class="log-box" readonly></textarea>
+        </div>
+    </div>
+
+    <input type="file" id="fileInput" accept="image/*" style="display: none;" multiple>
+
+<script>
+    // ==========================================
+    // 1. I18N
+    // ==========================================
+    const I18N = {
+        "ru": {
+            "title": "Ресурс-пак Генератор • Minecraft 1.21.1", "header": "🎨  Ресурс-пак Генератор",
+            "params": " Параметры пака ", "name": "Название:", "description": "Описание:",
+            "category": "Категория:", "texture": "Текстура", "size": "Размер", "source": "Источник",
+            "load_btn": "📁 Загрузить фото", "clear_sel": "🗑 Очистить", "clear_all": "🧹 Очистить всё",
+            "preview": " Превью ", "preview_hint": "Выберите текстуру слева", "no_image": "Нет изображения",
+            "generate": "▶  Сгенерировать и СОХРАНИТЬ", "log": " Лог ", "lang": "Язык:",
+            "export_mode": " Куда сохранить ", "mode_dir": "В выбранную папку", "mode_zip": "Сохранить как .zip-файл",
+            "path_label": "Путь:", "choose_dir": "Выбрать папку…", "choose_zip": "Выбрать .zip…",
+            "need_select": "Сначала выберите строку в списке.", "hint": "Подсказка",
+            "clear_confirm": "Убрать все загруженные картинки?", "empty_confirm": "Нет картинок. Продолжить?",
+            "err_no_name": "Введите название пака", "done_title": "Готово",
+            "done_text": "Успешно сохранено! Файл скачан в папку загрузок.",
+            "file_download_hint": "(В браузере файл скачивается в Загрузки)", "btn_choose": "Выбрать…"
+        },
+        "en": {
+            "title": "Resource Pack Generator • Minecraft 1.21.1", "header": "🎨  Resource Pack Generator",
+            "params": " Pack settings ", "name": "Name:", "description": "Description:",
+            "category": "Category:", "texture": "Texture", "size": "Size", "source": "Source",
+            "load_btn": "📁 Load image", "clear_sel": "🗑 Clear", "clear_all": "🧹 Clear all",
+            "preview": " Preview ", "preview_hint": "Select a texture on the left", "no_image": "No image",
+            "generate": "▶  Generate and SAVE", "log": " Log ", "lang": "Language:",
+            "export_mode": " Save to ", "mode_dir": "Custom folder", "mode_zip": "Save as .zip file",
+            "path_label": "Path:", "choose_dir": "Choose folder…", "choose_zip": "Choose .zip…",
+            "need_select": "Select a row first.", "hint": "Hint",
+            "clear_confirm": "Remove all loaded images?", "empty_confirm": "No images. Continue?",
+            "err_no_name": "Enter pack name", "done_title": "Done",
+            "done_text": "Successfully saved! File downloaded.",
+            "file_download_hint": "(Browser downloads to Downloads folder)", "btn_choose": "Choose…"
+        }
+    };
+
+    // Словарь для перевода названий категорий
+    const CAT_I18N = {
+        "Блоки — природа": "Blocks — Nature",
+        "Блоки — дерево": "Blocks — Wood",
+        "Блоки — руды и минералы": "Blocks — Ores",
+        "Блоки — прочее": "Blocks — Other",
+        "Предметы — ресурсы": "Items — Resources",
+        "Предметы — еда": "Items — Food",
+        "Предметы — инструменты": "Items — Tools",
+        "Предметы — броня": "Items — Armor",
+        "Предметы — прочее": "Items — Other",
+        "GUI": "GUI",
+        "Картины": "Paintings"
+    };
+
+    // ==========================================
+    // 2. КАТАЛОГ ТЕКСТУР
+    // ==========================================
+    function _t(id, en, ru, size) { return { id: id, path: id + ".png", size: size || [16, 16], name_en: en, name_ru: ru }; }
+    const TARGETS = {
+        "Блоки — природа": [ _t("block/stone", "Stone", "Камень"), _t("block/cobblestone", "Cobblestone", "Булыжник"), _t("block/mossy_cobblestone", "Mossy Cobblestone", "Мшистый булыжник"), _t("block/stone_bricks", "Stone Bricks", "Каменный кирпич"), _t("block/dirt", "Dirt", "Земля"), _t("block/coarse_dirt", "Coarse Dirt", "Грубая земля"), _t("block/grass_block_top", "Grass (top)", "Трава (верх)"), _t("block/grass_block_side", "Grass (side)", "Трава (бок)"), _t("block/sand", "Sand", "Песок"), _t("block/red_sand", "Red Sand", "Красный песок"), _t("block/gravel", "Gravel", "Гравий"), _t("block/clay", "Clay", "Глина"), _t("block/snow", "Snow", "Снег"), _t("block/ice", "Ice", "Лёд"), _t("block/packed_ice", "Packed Ice", "Плотный лёд"), _t("block/soul_sand", "Soul Sand", "Песок душ"), _t("block/netherrack", "Netherrack", "Нижний камень"), _t("block/end_stone", "End Stone", "Камень Края"), _t("block/obsidian", "Obsidian", "Обсидиан"), _t("block/bedrock", "Bedrock", "Бедрок") ],
+        "Блоки — дерево": [ _t("block/oak_planks", "Oak Planks", "Дубовые доски"), _t("block/oak_log", "Oak Log", "Дубовое бревно"), _t("block/oak_log_top", "Oak Log (top)", "Дуб (срез)"), _t("block/oak_leaves", "Oak Leaves", "Дубовые листья"), _t("block/spruce_planks", "Spruce Planks", "Еловые доски"), _t("block/spruce_log", "Spruce Log", "Еловое бревно"), _t("block/birch_planks", "Birch Planks", "Берёзовые доски"), _t("block/birch_log", "Birch Log", "Берёзовое бревно"), _t("block/jungle_planks", "Jungle Planks", "Доски джунглей"), _t("block/jungle_log", "Jungle Log", "Бревно джунглей"), _t("block/acacia_planks", "Acacia Planks", "Акациевые доски"), _t("block/dark_oak_planks", "Dark Oak Planks", "Доски тёмного дуба"), _t("block/crimson_planks", "Crimson Planks", "Багровые доски"), _t("block/warped_planks", "Warped Planks", "Искажённые доски") ],
+        "Блоки — руды и минералы": [ _t("block/coal_ore", "Coal Ore", "Угольная руда"), _t("block/iron_ore", "Iron Ore", "Железная руда"), _t("block/copper_ore", "Copper Ore", "Медная руда"), _t("block/gold_ore", "Gold Ore", "Золотая руда"), _t("block/redstone_ore", "Redstone Ore", "Редстоуновая руда"), _t("block/lapis_ore", "Lapis Ore", "Лазуритовая руда"), _t("block/diamond_ore", "Diamond Ore", "Алмазная руда"), _t("block/emerald_ore", "Emerald Ore", "Изумрудная руда"), _t("block/ancient_debris", "Ancient Debris", "Древние обломки"), _t("block/coal_block", "Coal Block", "Угольный блок"), _t("block/iron_block", "Iron Block", "Железный блок"), _t("block/copper_block", "Copper Block", "Медный блок"), _t("block/gold_block", "Gold Block", "Золотой блок"), _t("block/redstone_block", "Redstone Block", "Блок редстоуна"), _t("block/lapis_block", "Lapis Block", "Лазуритовый блок"), _t("block/diamond_block", "Diamond Block", "Алмазный блок"), _t("block/emerald_block", "Emerald Block", "Изумрудный блок"), _t("block/netherite_block", "Netherite Block", "Незеритовый блок"), _t("block/amethyst_block", "Amethyst Block", "Аметистовый блок"), _t("block/quartz_block_side", "Quartz Block", "Кварцевый блок") ],
+        "Блоки — прочее": [ _t("block/glass", "Glass", "Стекло"), _t("block/bricks", "Bricks", "Кирпич"), _t("block/nether_bricks", "Nether Bricks", "Кирпич Нижнего"), _t("block/end_stone_bricks", "End Stone Bricks", "Кирпич Края"), _t("block/bookshelf", "Bookshelf", "Книжная полка"), _t("block/crafting_table_top", "Crafting Table (top)", "Верстак (верх)"), _t("block/furnace_front", "Furnace (front)", "Печь (перед)"), _t("block/chest_front", "Chest (front)", "Сундук (перед)"), _t("block/tnt_side", "TNT (side)", "ТНТ (бок)"), _t("block/sponge", "Sponge", "Губка"), _t("block/melon_side", "Melon (side)", "Арбуз (бок)"), _t("block/pumpkin_side", "Pumpkin (side)", "Тыква (бок)") ],
+        "Предметы — ресурсы": [ _t("item/coal", "Coal", "Уголь"), _t("item/charcoal", "Charcoal", "Древесный уголь"), _t("item/raw_iron", "Raw Iron", "Сырое железо"), _t("item/iron_ingot", "Iron Ingot", "Железный слиток"), _t("item/iron_nugget", "Iron Nugget", "Кусочек железа"), _t("item/raw_copper", "Raw Copper", "Сырая медь"), _t("item/copper_ingot", "Copper Ingot", "Медный слиток"), _t("item/raw_gold", "Raw Gold", "Сырое золото"), _t("item/gold_ingot", "Gold Ingot", "Золотой слиток"), _t("item/gold_nugget", "Gold Nugget", "Кусочек золота"), _t("item/netherite_ingot", "Netherite Ingot", "Незеритовый слиток"), _t("item/netherite_scrap", "Netherite Scrap", "Незеритовый лом"), _t("item/diamond", "Diamond", "Алмаз"), _t("item/emerald", "Emerald", "Изумруд"), _t("item/lapis_lazuli", "Lapis Lazuli", "Лазурит"), _t("item/redstone", "Redstone", "Редстоун"), _t("item/quartz", "Nether Quartz", "Кварц"), _t("item/amethyst_shard", "Amethyst Shard", "Осколок аметиста"), _t("item/flint", "Flint", "Кремень"), _t("item/stick", "Stick", "Палка") ],
+        "Предметы — еда": [ _t("item/apple", "Apple", "Яблоко"), _t("item/golden_apple", "Golden Apple", "Золотое яблоко"), _t("item/bread", "Bread", "Хлеб"), _t("item/wheat", "Wheat", "Пшеница"), _t("item/beef", "Raw Beef", "Сырая говядина"), _t("item/cooked_beef", "Steak", "Стейк"), _t("item/porkchop", "Raw Porkchop", "Сырая свинина"), _t("item/cooked_porkchop", "Cooked Porkchop", "Жареная свинина"), _t("item/chicken", "Raw Chicken", "Сырая курица"), _t("item/cooked_chicken", "Cooked Chicken", "Жареная курица"), _t("item/carrot", "Carrot", "Морковь"), _t("item/potato", "Potato", "Картофель"), _t("item/baked_potato", "Baked Potato", "Печёный картофель"), _t("item/beetroot", "Beetroot", "Свёкла"), _t("item/melon_slice", "Melon Slice", "Ломтик арбуза"), _t("item/sweet_berries", "Sweet Berries", "Сладкие ягоды"), _t("item/cookie", "Cookie", "Печенье"), _t("item/pumpkin_pie", "Pumpkin Pie", "Тыквенный пирог") ],
+        "Предметы — инструменты": [ _t("item/wooden_pickaxe", "Wooden Pickaxe", "Деревянная кирка"), _t("item/stone_pickaxe", "Stone Pickaxe", "Каменная кирка"), _t("item/iron_pickaxe", "Iron Pickaxe", "Железная кирка"), _t("item/golden_pickaxe", "Golden Pickaxe", "Золотая кирка"), _t("item/diamond_pickaxe", "Diamond Pickaxe", "Алмазная кирка"), _t("item/netherite_pickaxe", "Netherite Pickaxe", "Незеритовая кирка"), _t("item/wooden_axe", "Wooden Axe", "Деревянный топор"), _t("item/iron_axe", "Iron Axe", "Железный топор"), _t("item/diamond_axe", "Diamond Axe", "Алмазный топор"), _t("item/wooden_shovel", "Wooden Shovel", "Деревянная лопата"), _t("item/iron_shovel", "Iron Shovel", "Железная лопата"), _t("item/diamond_shovel", "Diamond Shovel", "Алмазная лопата"), _t("item/wooden_hoe", "Wooden Hoe", "Деревянная мотыга"), _t("item/iron_hoe", "Iron Hoe", "Железная мотыга"), _t("item/wooden_sword", "Wooden Sword", "Деревянный меч"), _t("item/stone_sword", "Stone Sword", "Каменный меч"), _t("item/iron_sword", "Iron Sword", "Железный меч"), _t("item/golden_sword", "Golden Sword", "Золотой меч"), _t("item/diamond_sword", "Diamond Sword", "Алмазный меч"), _t("item/netherite_sword", "Netherite Sword", "Незеритовый меч"), _t("item/bow", "Bow", "Лук"), _t("item/arrow", "Arrow", "Стрела"), _t("item/shield", "Shield", "Щит"), _t("item/fishing_rod", "Fishing Rod", "Удочка"), _t("item/shears", "Shears", "Ножницы") ],
+        "Предметы — броня": [ _t("item/leather_helmet", "Leather Helmet", "Кожаный шлем"), _t("item/leather_chestplate", "Leather Chestplate", "Кожаная куртка"), _t("item/leather_leggings", "Leather Leggings", "Кожаные штаны"), _t("item/leather_boots", "Leather Boots", "Кожаные ботинки"), _t("item/iron_helmet", "Iron Helmet", "Железный шлем"), _t("item/iron_chestplate", "Iron Chestplate", "Железная кираса"), _t("item/iron_leggings", "Iron Leggings", "Железные поножи"), _t("item/iron_boots", "Iron Boots", "Железные ботинки"), _t("item/golden_helmet", "Golden Helmet", "Золотой шлем"), _t("item/golden_chestplate", "Golden Chestplate", "Золотая кираса"), _t("item/golden_leggings", "Golden Leggings", "Золотые поножи"), _t("item/golden_boots", "Golden Boots", "Золотые ботинки"), _t("item/diamond_helmet", "Diamond Helmet", "Алмазный шлем"), _t("item/diamond_chestplate", "Diamond Chestplate", "Алмазная кираса"), _t("item/diamond_leggings", "Diamond Leggings", "Алмазные поножи"), _t("item/diamond_boots", "Diamond Boots", "Алмазные ботинки"), _t("item/netherite_helmet", "Netherite Helmet", "Незеритовый шлем"), _t("item/netherite_chestplate", "Netherite Chestplate", "Незеритовая кираса"), _t("item/netherite_leggings", "Netherite Leggings", "Незеритовые поножи"), _t("item/netherite_boots", "Netherite Boots", "Незеритовые ботинки") ],
+        "Предметы — прочее": [ _t("item/paper", "Paper", "Бумага"), _t("item/book", "Book", "Книга"), _t("item/writable_book", "Book and Quill", "Книга и перо"), _t("item/name_tag", "Name Tag", "Бирка"), _t("item/end_pearl", "Ender Pearl", "Эндер-жемчуг"), _t("item/ender_eye", "Eye of Ender", "Око Эндера"), _t("item/blaze_rod", "Blaze Rod", "Огненный стержень"), _t("item/blaze_powder", "Blaze Powder", "Огненный порошок"), _t("item/ghast_tear", "Ghast Tear", "Слеза гаста"), _t("item/slime_ball", "Slimeball", "Слизь"), _t("item/magma_cream", "Magma Cream", "Магмовый крем"), _t("item/experience_bottle", "Bottle o' Enchanting", "Бутылочка опыта"), _t("item/glass_bottle", "Glass Bottle", "Стеклянная бутылочка"), _t("item/honey_bottle", "Honey Bottle", "Бутылочка мёда"), _t("item/bone", "Bone", "Кость"), _t("item/bone_meal", "Bone Meal", "Костная мука"), _t("item/string", "String", "Нить"), _t("item/feather", "Feather", "Перо"), _t("item/leather", "Leather", "Кожа"), _t("item/gunpowder", "Gunpowder", "Порох"), _t("item/glowstone_dust", "Glowstone Dust", "Светопыль"), _t("item/sugar", "Sugar", "Сахар"), _t("item/egg", "Egg", "Яйцо"), _t("item/totem_of_undying", "Totem of Undying", "Тотем бессмертия"), _t("item/saddle", "Saddle", "Седло"), _t("item/elytra", "Elytra", "Элитры"), _t("item/trident", "Trident", "Трезубец") ],
+        "GUI": [ _t("gui/container/inventory", "Inventory GUI", "Инвентарь", [256, 256]), _t("gui/container/crafting_table", "Crafting Table GUI", "Верстак", [256, 256]), _t("gui/container/furnace", "Furnace GUI", "Печь", [256, 256]), _t("gui/container/chest", "Chest GUI", "Сундук", [256, 256]), _t("gui/icons", "GUI Icons", "Иконки GUI", [256, 256]), _t("gui/widgets", "GUI Widgets", "Виджеты", [256, 256]) ],
+        "Картины": [ _t("painting/kebab", "Painting: Kebab", "Картина: Кебаб"), _t("painting/aztec", "Painting: Aztec", "Картина: Ацтек"), _t("painting/bomb", "Painting: Bomb", "Картина: Бомба"), _t("painting/plant", "Painting: Plant", "Картина: Растение"), _t("painting/wasteland", "Painting: Wasteland", "Картина: Пустошь"), _t("painting/wanderer", "Painting: Wanderer", "Картина: Странник"), _t("painting/pool", "Painting: Pool", "Картина: Бассейн"), _t("painting/sea", "Painting: Sea", "Картина: Море"), _t("painting/sunset", "Painting: Sunset", "Картина: Закат"), _t("painting/skeleton", "Painting: Skeleton", "Картина: Скелет"), _t("painting/donkey_kong", "Painting: Donkey Kong", "Картина: Донки Конг"), _t("painting/pointer", "Painting: Pointer", "Картина: Указатель") ]
+    };
+
+    // ==========================================
+    // 3. СОСТОЯНИЕ
+    // ==========================================
+    let currentLang = localStorage.getItem('rp_lang') || 'ru';
+    let assignments = {}; 
+    let selectedTextureId = null;
+    const $ = id => document.getElementById(id);
+    const catSelect = $('categorySelect');
+    const tbody = $('textureTbody');
+    const fileInput = $('fileInput');
+    const logBox = $('logBox');
+
+    $('packName').value = localStorage.getItem('rp_name') || "Мой ресурс-пак";
+    $('packDesc').value = localStorage.getItem('rp_desc') || "Сделан в GUI-генераторе";
+    $('langSelect').value = currentLang;
+
+    // ==========================================
+    // 4. ЛОГИКА
+    // ==========================================
+    function tr(key) { return I18N[currentLang][key] || I18N['en'][key] || key; }
+
+    function updateUILanguage() {
+        document.title = tr("title");
+        $('lbl-header').textContent = tr("header");
+        $('lbl-params').textContent = tr("params");
+        $('lbl-name').textContent = tr("name");
+        $('lbl-desc').textContent = tr("description");
+        $('lbl-lang').textContent = tr("lang");
+        $('lbl-cat').textContent = tr("category");
+        $('btnLoad').textContent = tr("load_btn");
+        $('btnClearSel').textContent = tr("clear_sel");
+        $('btnClearAll').textContent = tr("clear_all");
+        $('btnGenerate').textContent = tr("generate");
+        $('lbl-preview').textContent = tr("preview");
+        $('lbl-log').textContent = tr("log");
+        $('lbl-export').textContent = tr("export_mode");
+        $('lbl-mode-dir').textContent = tr("mode_dir");
+        $('lbl-mode-zip').textContent = tr("mode_zip");
+        $('lbl-path').textContent = tr("path_label");
+        $('th-tex').textContent = tr("texture");
+        $('th-size').textContent = tr("size");
+        $('th-src').textContent = tr("source");
+        $('pathInput').placeholder = tr("file_download_hint");
+        $('btnPath').textContent = tr("btn_choose");
+        
+        if (!selectedTextureId) {
+            $('previewText').textContent = tr("preview_hint");
+        } else if (!assignments[selectedTextureId]) {
+            $('previewText').textContent = tr("no_image");
+        }
+
+        // ВАЖНО: Обновляем выпадающий список категорий с переводом
+        const currentCatVal = catSelect.value;
+        catSelect.innerHTML = '';
+        Object.keys(TARGETS).forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat; 
+            opt.textContent = currentLang === 'ru' ? cat : (CAT_I18N[cat] || cat);
+            catSelect.appendChild(opt);
+        });
+        catSelect.value = currentCatVal || Object.keys(TARGETS)[0];
+
+        renderTable();
+    }
+
+    function renderTable() {
+        tbody.innerHTML = '';
+        const cat = catSelect.value;
+        const list = TARGETS[cat] || [];
+        list.forEach(tex => {
+            const tr = document.createElement('tr');
+            tr.dataset.path = tex.path;
+            const name = currentLang === 'ru' ? tex.name_ru : tex.name_en;
+            const src = assignments[tex.path] ? assignments[tex.path].file.name : '—';
+            tr.innerHTML = `<td>${name}</td><td>${tex.size[0]}×${tex.size[1]}</td><td>${src}</td>`;
+            if (tex.path === selectedTextureId) tr.classList.add('selected');
+            tr.addEventListener('click', () => {
+                document.querySelectorAll('tr.selected').forEach(el => el.classList.remove('selected'));
+                tr.classList.add('selected');
+                selectedTextureId = tex.path;
+                updatePreview(tex);
+            });
+            tbody.appendChild(tr);
+        });
+    }
+
+    function updatePreview(tex) {
+        const imgEl = $('previewImg'), textEl = $('previewText'), infoEl = $('previewInfo');
+        const assigned = assignments[tex.path];
+        if (!assigned) {
+            imgEl.style.display = 'none'; textEl.style.display = 'block';
+            textEl.textContent = tr("no_image"); infoEl.textContent = ''; return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            imgEl.src = e.target.result; imgEl.style.display = 'block'; textEl.style.display = 'none';
+            infoEl.textContent = `${assigned.file.name} → ${tex.size[0]}×${tex.size[1]}`;
+        };
+        reader.readAsDataURL(assigned.file);
+    }
+
+    function log(msg) { logBox.value += msg + '\n'; logBox.scrollTop = logBox.scrollHeight; }
+
+    // ==========================================
+    // 5. СОБЫТИЯ
+    // ==========================================
+    catSelect.addEventListener('change', () => {
+        selectedTextureId = null; renderTable();
+        $('previewImg').style.display = 'none'; $('previewText').style.display = 'block';
+        $('previewText').textContent = tr("preview_hint"); $('previewInfo').textContent = '';
+    });
+
+    $('langSelect').addEventListener('change', (e) => {
+        currentLang = e.target.value;
+        localStorage.setItem('rp_lang', currentLang);
+        updateUILanguage();
+    });
+
+    $('packName').addEventListener('input', (e) => localStorage.setItem('rp_name', e.target.value));
+    $('packDesc').addEventListener('input', (e) => localStorage.setItem('rp_desc', e.target.value));
+
+    $('btnLoad').addEventListener('click', () => {
+        if (!selectedTextureId) return alert(tr("need_select"));
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        const files = e.target.files;
+        if (!files.length || !selectedTextureId) return;
+        const cat = catSelect.value, list = TARGETS[cat];
+        const targetTex = list.find(t => t.path === selectedTextureId);
+        if (files.length === 1) {
+            assignments[targetTex.path] = { file: files[0], size: targetTex.size };
+        } else {
+            list.forEach((tex, index) => {
+                if (index < files.length) assignments[tex.path] = { file: files[index], size: tex.size };
+            });
+        }
+        renderTable(); updatePreview(targetTex); fileInput.value = ''; 
+    });
+
+    $('btnClearSel').addEventListener('click', () => {
+        if (selectedTextureId) {
+            delete assignments[selectedTextureId]; renderTable();
+            const tex = TARGETS[catSelect.value].find(t => t.path === selectedTextureId);
+            if (tex) updatePreview(tex);
+        }
+    });
+
+    $('btnClearAll').addEventListener('click', () => {
+        if (confirm(tr("clear_confirm"))) {
+            assignments = {}; renderTable();
+            if (selectedTextureId) {
+                const tex = TARGETS[catSelect.value].find(t => t.path === selectedTextureId);
+                if (tex) updatePreview(tex);
+            }
+        }
+    });
+
+    // ==========================================
+    // 6. ГЕНЕРАЦИЯ
+    // ==========================================
+    function resizeImage(file, targetW, targetH) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = targetW; canvas.height = targetH;
+                const ctx = canvas.getContext('2d');
+                const scale = Math.max(targetW / img.width, targetH / img.height);
+                const newW = img.width * scale, newH = img.height * scale;
+                const offsetX = (targetW - newW) / 2, offsetY = (targetH - newH) / 2;
+                ctx.drawImage(img, offsetX, offsetY, newW, newH);
+                canvas.toBlob(resolve, 'image/png');
+            };
+            img.src = URL.createObjectURL(file);
+        });
+    }
+
+    $('btnGenerate').addEventListener('click', async () => {
+        const packName = $('packName').value.trim();
+        const packDesc = $('packDesc').value.trim() || '—';
+        if (!Object.keys(assignments).length && !confirm(tr("empty_confirm"))) return;
+        if (!packName) return alert(tr("err_no_name"));
+
+        log("=".repeat(50));
+        log(`${tr("generate")}: ${packName}`);
+        log(`→ (Скачивание в браузере)`);
+
+        const zip = new JSZip();
+        zip.file("pack.mcmeta", JSON.stringify({ pack: { pack_format: 34, description: packDesc } }, null, 2));
+
+        for (const [path, data] of Object.entries(assignments)) {
+            log(`  + ${path} ← ${data.file.name}`);
+            const blob = await resizeImage(data.file, data.size[0], data.size[1]);
+            zip.file(`assets/minecraft/textures/${path}`, blob);
+        }
+
+        log("Создание архива...");
+        zip.generateAsync({ type: "blob" }).then((content) => {
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(content);
+            let safeName = packName.replace(/[^a-zA-Zа-яА-Я0-9 _\-]/g, '') || 'pack';
+            link.download = `${safeName}.zip`;
+            link.click();
+            log(`✓ ${safeName}.zip ${tr("done_text")}`);
+        });
+    });
+
+    updateUILanguage();
+</script>
+</body>
+</html>
